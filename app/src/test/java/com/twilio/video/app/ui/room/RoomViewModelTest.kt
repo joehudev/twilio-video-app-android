@@ -209,12 +209,10 @@ class RoomViewModelTest : BaseUnitTest() {
     @Test
     fun `OnCleared should shutdown the RoomManager`() {
         connect()
-        assertThat(roomManager.roomReceiveChannel.isClosedForReceive, equalTo(false))
         assertThat(roomManager.roomScope.isActive, equalTo(true))
 
         viewModel.onCleared()
 
-        assertThat(roomManager.roomReceiveChannel.isClosedForReceive, equalTo(true))
         assertThat(roomManager.roomScope.isActive, equalTo(false))
     }
 

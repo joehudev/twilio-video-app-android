@@ -66,7 +66,7 @@ import io.uniflow.androidx.flow.AndroidDataFlow
 import io.uniflow.core.flow.actionOn
 import io.uniflow.core.flow.data.UIState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -145,13 +145,10 @@ class RoomViewModel(
     }
 
     private fun subscribeToRoomChannel() {
-        roomManager.roomReceiveChannel.let { channel ->
+        roomManager.eventStateFlow.let { stateFlow ->
             viewModelScope.launch {
-                while (isActive && !channel.isClosedForReceive) {
                     Timber.d("Listening for RoomEvents")
-                    channel.receiveOrNull()?.let { observeRoomEvents(it) }
-                            ?: Timber.e("Cannot receive(), Channel is closed")
-                }
+                    stateFlow.collect { observeRoomEvents(it) }
             }
         }
     }

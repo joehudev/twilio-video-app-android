@@ -28,9 +28,10 @@ import com.twilio.video.app.ui.room.VideoService.Companion.stopService
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -38,6 +39,7 @@ const val MICROPHONE_TRACK_NAME = "microphone"
 const val CAMERA_TRACK_NAME = "camera"
 const val SCREEN_TRACK_NAME = "screen"
 
+@ExperimentalCoroutinesApi
 class RoomManager(
     private val context: Context,
     private val videoClient: VideoClient,
@@ -49,11 +51,8 @@ class RoomManager(
     private val roomListener = RoomListener()
     @VisibleForTesting(otherwise = PRIVATE)
     internal var roomScope = CoroutineScope(coroutineDispatcher)
-    /*
-     * TODO Use SharedFlow instead once it becomes stable for automatic cancellation
-     */
-    private val roomChannel: Channel<RoomEvent> = Channel(Channel.BUFFERED)
-    val roomReceiveChannel: ReceiveChannel<RoomEvent> = roomChannel
+    private val mutableEventStateFlow: MutableStateFlow<RoomEvent> = MutableStateFlow(Disconnected)
+    val eventStateFlow: StateFlow<RoomEvent> = mutableEventStateFlow
     @VisibleForTesting(otherwise = PRIVATE)
     internal var localParticipantManager: LocalParticipantManager =
             LocalParticipantManager(context, this, sharedPreferences)
@@ -81,7 +80,7 @@ class RoomManager(
     }
 
     private fun sendToChannel(roomEvent: RoomEvent) {
-        roomScope.launch { roomChannel.send(roomEvent) }
+        roomScope.launch { mutableEventStateFlow.value = roomEvent }
     }
 
     fun sendRoomEvent(roomEvent: RoomEvent) {
@@ -95,9 +94,8 @@ class RoomManager(
     }
 
     internal fun shutdownRoom() {
-        Timber.d("Shutting down Room Coroutine Scope and Channel: \n$roomScope\n$roomChannel")
+        Timber.d("Canceling Room Scope: \n$roomScope\n$")
         roomScope.cancel()
-        roomChannel.close()
     }
 
     fun onResume() {
